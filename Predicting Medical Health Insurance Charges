@@ -1,0 +1,333 @@
+### The following code is for the KNN regression from Scratch
+### Created by - Muhammad Ahmed Shuja
+
+
+### Importing libraries
+import pandas as pd
+import numpy as np
+import seaborn as sns
+import numpy.random as nr
+import matplotlib.pyplot as plt
+-->
+df=pd.read_csv('insurance.csv')
+df.head()
+
+### Data types and number of columns and rows
+df.info()
+
+### Data Summary
+df.describe()
+
+### Finding Null Values
+df.isnull().sum()
+
+### Classifying and counting total no. of 'sex' , 'region ' ,'smoker'
+print(df['sex'].value_counts())
+print()
+print(df['region'].value_counts())
+print()
+print(df['smoker'].value_counts())
+
+## Exploratory Data analysis
+sns.pairplot(df)
+
+### Healthy People
+df_healthy=df[(df['bmi']>18.5) & (df['bmi']<24.9)]
+a=df_healthy.count()
+print('healthy_people:')
+print(a)
+df_healthy_region=df_healthy.groupby('region')
+df_healthy_region.describe().round(2)
+ 
+ sns.catplot(x="sex", y="charges", hue="smoker",
+                col="region", height=4, data=df_healthy)
+
+sns.boxplot(x=df_healthy["charges"])
+
+#### Removing outlier charges from healthy people
+df1=df_healthy[df_healthy['charges']<33000]
+
+sns.catplot(x="sex", y="age", hue="smoker",
+                col="region", height=4, data=df1)
+
+### Underweight People
+df_underweight=df[(df['bmi']<18.5)]
+a=df_underweight.count()
+print('underweight_people:')
+print(a)
+df_underweigh_region=df_underweight.groupby('region')
+df_underweigh_region.describe().round(2)
+
+sns.boxplot(x=df_underweight["charges"])
+sns.boxplot(x=df_underweight["bmi"])
+
+#### Removing outlier charges and bmi from Underweight people
+df2=df_underweight[df_underweight['charges']<20000]
+df2=df2[df2['bmi']>16.5]
+
+sns.catplot(x="sex", y="charges", hue="smoker",
+                col="region", height=4, data=df2)
+
+sns.catplot(x="sex", y="age", hue="smoker",
+                col="region", height=4, data=df2)
+
+### Overweight People
+df_overweight=df[(df['bmi']>24.9)]
+b=df_overweight.count()
+print('overweight_people:')
+print(b)
+df_overweight_region=df_overweight.groupby('region')
+df_overweight_region.describe().round(2)
+
+sns.boxplot(x=df_overweight["charges"])
+sns.boxplot(x=df_overweight["bmi"])
+
+#### Removing outlier charges and bmi from Overweight people
+df3=df_overweight[df_overweight['charges']<50000]
+df3=df3[df3['bmi']<47]
+
+sns.catplot(x="sex", y="charges", hue="smoker",
+                col="region", height=4, data=df3)
+
+sns.catplot(x="sex", y="age", hue="smoker",
+                col="region", height=4, data=df3)
+
+df_final=pd.concat([df1,df2,df3])
+df_final.head()
+df_final['region'].unique()
+
+# KNN Model
+## KNN Model wihtout any Modification
+#### changing categorial data into numeric data type
+# dummy variables
+data= pd.get_dummies(df, drop_first=True)
+data.columns.values
+cols=['age', 'bmi','children', 'sex_male', 'smoker_yes','region_northwest', 'region_southeast', 'region_southwest',
+       'charges']
+       
+dumies_data=data[cols]
+dumies_data.head()
+
+inputs=dumies_data.drop(['charges'],axis=1)
+target=dumies_data['charges']
+
+#Standarization
+import sklearn.preprocessing as sp   
+scalar=sp.StandardScaler()
+scalar.fit(inputs)
+scalar_input=scalar.transform(inputs)
+
+# Split dataset into train/test datasets
+import sklearn.model_selection as sm 
+x_train,x_test,y_train,y_test=sm.train_test_split(scalar_input,target,test_size=0.2, random_state=365)
+
+#Using KNN regression model 
+import sklearn.neighbors as sn
+KNN=sn.KNeighborsRegressor(n_neighbors=20)  # because this is a regression problem,p=2 euclidean_distance
+KNN.fit(x_train,y_train)
+
+# predicting values by using test dataset
+pred=KNN.predict(x_test)
+
+import sklearn
+R=sklearn.metrics.r2_score(y_test,pred)  # R-Square score for model Evaluation
+Print(R)
+
+n = x_test.shape[0]
+p = x_test.shape[1]
+
+adjusted_r2 = 1-(1-R)*(n-1)/(n-p-1)
+adjusted_r2   # Adjusted R-Square Score
+
+### Feature Selection
+# Feature selection
+import sklearn.feature_selection as sf
+# There are two output arrays
+# The first one contains the F-statistics for each of the regressions
+# The second one contains the p-values of these F-statistics
+p_values = sf.f_regression(x_train,y_train)[1].round(4)
+p_values
+
+## KNN Model After Modification
+df_1=pd.DataFrame()
+df_1['smoker'] = df_final['smoker'].map({'yes': 1, 'no': 0})
+df_2=pd.DataFrame()
+df_2['sex'] = df_final['sex'].map({'male': 1, 'female': 0})
+df_3=pd.DataFrame()
+df_3['regions'] = df_final['region'].map({'northwest': 1,'northeast':2,'southwest': 3,'southeast': 4})
+
+### Non-parametric Rank Correlation
+a1=df_final['age'].values
+a2=df_final['charges'].values
+a3=df_final['children'].values
+a4=df_1['smoker'].values
+a5=df_2['sex'].values
+a6=df_3['regions'].values
+
+
+#### kendall's Rank Correlation between Charges and age
+from numpy.random import rand
+from numpy.random import seed
+from scipy.stats import kendalltau
+# seed random number generator
+seed(1)
+# calculate kendall's correlation
+coef, p = kendalltau(a2,a1)
+print('Kendall correlation coefficient: %.3f' % coef)
+# interpret the significance
+alpha = 0.05
+if p > alpha:
+    print('Samples are uncorrelated (fail to reject H0) p=%.3f' % p)
+else:
+    print('Samples are correlated (reject H0) p=%.3f' % p)
+
+
+#### kendall's Rank Correlation between Charges and sex
+from numpy.random import rand
+from numpy.random import seed
+from scipy.stats import kendalltau
+# seed random number generator
+seed(1)
+# calculate kendall's correlation
+coef, p = kendalltau(a2,a5)
+print('Kendall correlation coefficient: %.3f' % coef)
+# interpret the significance
+alpha = 0.05
+if p > alpha:
+    print('Samples are uncorrelated (fail to reject H0) p=%.3f' % p)
+else:
+    print('Samples are correlated (reject H0) p=%.3f' % p)
+
+
+#### kendall's Rank Correlation between Charges and children
+from numpy.random import rand
+from numpy.random import seed
+from scipy.stats import kendalltau
+# seed random number generator
+seed(1)
+# calculate kendall's correlation
+coef, p = kendalltau(a2,a3)
+print('Kendall correlation coefficient: %.3f' % coef)
+# interpret the significance
+alpha = 0.05
+if p > alpha:
+    print('Samples are uncorrelated (fail to reject H0) p=%.3f' % p)
+else:
+    print('Samples are correlated (reject H0) p=%.3f' % p)
+
+#### kendall's Rank Correlation between Charges and regions
+from numpy.random import rand
+from numpy.random import seed
+from scipy.stats import kendalltau
+# seed random number generator
+seed(1)
+# calculate kendall's correlation
+coef, p = kendalltau(a2,a6)
+print('Kendall correlation coefficient: %.3f' % coef)
+# interpret the significance
+alpha = 0.05
+if p > alpha:
+    print('Samples are uncorrelated (fail to reject H0) p=%.3f' % p)
+else:
+    print('Samples are correlated (reject H0) p=%.3f' % p)
+
+#### kendall's Rank Correlation between Charges and smoker
+from numpy.random import rand
+from numpy.random import seed
+from scipy.stats import kendalltau
+# seed random number generator
+seed(1)
+# calculate kendall's correlation
+coef, p = kendalltau(a2,a4)
+print('Kendall correlation coefficient: %.3f' % coef)
+# interpret the significance
+alpha = 0.05
+if p > alpha:
+    print('Samples are uncorrelated (fail to reject H0) p=%.3f' % p)
+else:
+    print('Samples are correlated (reject H0) p=%.3f' % p)
+
+
+# creating Dummies variable
+data11= pd.get_dummies(df_final, drop_first=True)
+
+# finding column name
+data11.columns.values
+
+cols=['age', 'bmi', 'children', 'smoker_yes',
+       'charges']
+
+dumies_data=data11[cols]
+dumies_data.head()
+
+
+inputs=dumies_data.drop(['charges'],axis=1)
+target=dumies_data['charges']
+
+import sklearn.preprocessing as sp
+scalar=sp.StandardScaler()
+scalar.fit(inputs)
+scalar_input=scalar.transform(inputs)
+
+import sklearn.model_selection as sm 
+x_train,x_test,y_train,y_test=sm.train_test_split(scalar_input,target,test_size=0.2, random_state=365)
+
+### Feature Selection
+import sklearn.feature_selection as sf
+# There are two output arrays
+# The first one contains the F-statistics for each of the regressions
+# The second one contains the p-values of these F-statistics
+p_values = sf.f_regression(x_train,y_train)[1].round(4)
+p_values
+
+
+
+import sklearn.neighbors as sn
+KNN=sn.KNeighborsRegressor(n_neighbors=19,p=2,metric='minkowski')  # because this is a regression problem,p=2 euclidean_distance
+KNN.fit(x_train,y_train)
+
+#### Model Evaluation in terms of R-Square score 
+pred=KNN.predict(x_test)
+import sklearn
+R=sklearn.metrics.r2_score(y_test,pred)*100
+R
+
+### Choosing the best value for 'K'
+from sklearn import metrics
+rmse_val = []
+for K in range(1,30):
+    
+    model = sn.KNeighborsRegressor(n_neighbors = K)
+
+    model.fit(x_train, y_train)  #fit the model
+    pred=model.predict(x_test) #make prediction on test set
+    error = np.sqrt(metrics.mean_squared_error(y_test,pred)) #calculate rmse
+    rmse_val.append(error) #store rmse values
+    print('RMSE value for k= ' , K , 'is:', error)
+print()
+print("Manimum error:-",min(rmse_val),"at K =",rmse_val.index(min(rmse_val))+1)
+
+
+# using graph representation to show the best value of "K"
+plt.figure(figsize=(11,5))
+plt.plot(range(1,30),rmse_val,color='blue', linestyle='dashed', marker='o',markerfacecolor='red', markersize=10)
+plt.title('RMSE Error vs. K Value')
+plt.xlabel('K')
+plt.ylabel('Error ')
+plt.show()
+
+
+###  KNN Model after modification is 87.34 % accurate. First I've achieved 73% accuracy from the model but when I eliminate the outliers, corrupt data ,missing data and choose correct value of 'K' then I've achived a greater accuracy of the model that is 87.34%  
+
+
+
+
+
+
+
+
+
+
+
+
+
